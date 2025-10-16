@@ -2,6 +2,8 @@
 
 A powerful desktop application for managing and editing Claude AI agent configurations with an intuitive interface, live markdown preview, and seamless Claude Code integration.
 
+![Claude Agents Manager Preview](preview.png)
+
 ## About
 
 Claude Agents Manager is an Electron-based desktop application that provides a comprehensive workspace for creating, editing, and managing your Claude AI agent instruction files. With a dual-pane editor featuring both markdown and rich text editing modes, live preview, and direct Claude Code terminal integration, it streamlines your agent development workflow.
