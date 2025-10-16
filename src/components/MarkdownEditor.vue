@@ -653,45 +653,67 @@ const handleKeydown = (event) => {
 }
 
 .prose {
-  color: #e5e7eb;
+  color: var(--color-text, #111827);
   line-height: 1.8;
+}
+
+.dark .prose {
+  color: var(--color-text, #e5e7eb);
 }
 
 /* Headings */
 .prose h1 {
-  color: #f9fafb;
+  color: var(--color-text, #111827);
   font-size: 2em;
   font-weight: bold;
   margin-top: 0;
   margin-bottom: 0.75em;
   padding-bottom: 0.3em;
-  border-bottom: 2px solid #374151;
+  border-bottom: 2px solid var(--color-border, #e5e7eb);
+}
+
+.dark .prose h1 {
+  color: var(--color-text, #f9fafb);
+  border-bottom-color: var(--color-border, #374151);
 }
 
 .prose h2 {
-  color: #f9fafb;
+  color: var(--color-text, #111827);
   font-size: 1.5em;
   font-weight: bold;
   margin-top: 1.5em;
   margin-bottom: 0.75em;
   padding-bottom: 0.2em;
-  border-bottom: 1px solid #374151;
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.dark .prose h2 {
+  color: var(--color-text, #f9fafb);
+  border-bottom-color: var(--color-border, #374151);
 }
 
 .prose h3 {
-  color: #f9fafb;
+  color: var(--color-text, #111827);
   font-size: 1.25em;
   font-weight: bold;
   margin-top: 1.25em;
   margin-bottom: 0.5em;
 }
 
+.dark .prose h3 {
+  color: var(--color-text, #f9fafb);
+}
+
 .prose h4 {
-  color: #f9fafb;
+  color: var(--color-text, #111827);
   font-size: 1.1em;
   font-weight: bold;
   margin-top: 1em;
   margin-bottom: 0.5em;
+}
+
+.dark .prose h4 {
+  color: var(--color-text, #f9fafb);
 }
 
 /* Paragraphs */
@@ -701,14 +723,20 @@ const handleKeydown = (event) => {
 
 /* Inline code */
 .prose code {
-  background-color: #2d3748;
+  background-color: #f6f8fa;
   padding: 0.2em 0.5em;
   border-radius: 0.25em;
   font-size: 0.875em;
-  color: #fbbf24;
-  border: 1px solid #4a5568;
+  color: #dc2626;
+  border: 1px solid #d0d7de;
   font-weight: 600;
   font-family: 'Courier New', Courier, monospace;
+}
+
+.dark .prose code {
+  background-color: #1f2937;
+  color: #fbbf24;
+  border-color: #374151;
 }
 
 /* Code blocks */
@@ -860,19 +888,31 @@ const handleKeydown = (event) => {
 
 /* Links */
 .prose a {
-  color: #60a5fa;
+  color: #2563eb;
   text-decoration: underline;
   transition: color 0.2s;
 }
 
 .prose a:hover {
+  color: #1d4ed8;
+}
+
+.dark .prose a {
+  color: #60a5fa;
+}
+
+.dark .prose a:hover {
   color: #93c5fd;
 }
 
 /* Text formatting */
 .prose strong {
   font-weight: bold;
-  color: #f9fafb;
+  color: var(--color-text, #111827);
+}
+
+.dark .prose strong {
+  color: var(--color-text, #f9fafb);
 }
 
 .prose em {
@@ -906,14 +946,20 @@ const handleKeydown = (event) => {
 
 /* Blockquotes */
 .prose blockquote {
-  border-left: 4px solid #60a5fa;
+  border-left: 4px solid #2563eb;
   padding-left: 1em;
   margin: 1em 0;
-  color: #d1d5db;
+  color: #4b5563;
   font-style: italic;
-  background-color: #1f2937;
+  background-color: #f9fafb;
   padding: 0.75em 1em;
   border-radius: 0 0.25em 0.25em 0;
+}
+
+.dark .prose blockquote {
+  border-left-color: #60a5fa;
+  color: #d1d5db;
+  background-color: #1f2937;
 }
 
 .prose blockquote p {
@@ -923,8 +969,12 @@ const handleKeydown = (event) => {
 /* Horizontal rule */
 .prose hr {
   border: none;
-  border-top: 2px solid #374151;
+  border-top: 2px solid var(--color-border, #e5e7eb);
   margin: 2em 0;
+}
+
+.dark .prose hr {
+  border-top-color: var(--color-border, #374151);
 }
 
 /* Tables */
@@ -935,20 +985,34 @@ const handleKeydown = (event) => {
 }
 
 .prose th {
-  background-color: #374151;
-  color: #f9fafb;
+  background-color: #f3f4f6;
+  color: #111827;
   font-weight: bold;
   padding: 0.75em;
   text-align: left;
-  border: 1px solid #4b5563;
+  border: 1px solid #d1d5db;
+}
+
+.dark .prose th {
+  background-color: #374151;
+  color: #f9fafb;
+  border-color: #4b5563;
 }
 
 .prose td {
   padding: 0.75em;
-  border: 1px solid #4b5563;
+  border: 1px solid #d1d5db;
+}
+
+.dark .prose td {
+  border-color: #4b5563;
 }
 
 .prose tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.dark .prose tr:nth-child(even) {
   background-color: #1f2937;
 }
 

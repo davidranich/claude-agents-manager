@@ -3,16 +3,18 @@ import { ref, onMounted } from 'vue';
 import { useAgentStore } from '@/stores/agentStore';
 import { useElectronAPI } from '@/composables/useElectronAPI';
 import { useLocalStorage } from '@/composables/useLocalStorage';
-import { useTheme } from '@/composables/useTheme';
+import { useTerminalSettings } from '@/composables/useTerminalSettings';
 import FileBrowser from '@/components/FileBrowser.vue';
 import MarkdownEditor from '@/components/MarkdownEditor.vue';
+import SettingsModal from '@/components/SettingsModal.vue';
 
 const agentStore = useAgentStore();
 const { selectDirectory, getAppPath, readDirectory } = useElectronAPI();
 const { saveLastDirectory, getLastDirectory, clearLastDirectory } = useLocalStorage();
-const { currentTheme, toggleTheme } = useTheme();
+const { preferredTerminal, setPreferredTerminal, TERMINALS, TERMINAL_LABELS } = useTerminalSettings();
 
 const appReady = ref(false);
+const showSettings = ref(false);
 
 onMounted(async () => {
   // Initialize app
@@ -60,6 +62,19 @@ const handleClearSavedDirectory = () => {
   agentStore.setFiles([]);
   agentStore.clearSelection();
 };
+
+const handleLaunchClaudeCode = async () => {
+  try {
+    const result = await window.electronAPI.launchClaudeCodeExternal(null, agentStore.currentDirectory, preferredTerminal.value);
+    if (result.success) {
+      console.log('Claude Code launched in external terminal');
+    } else {
+      console.error('Error launching Claude Code:', result.error);
+    }
+  } catch (error) {
+    console.error('Error launching Claude Code:', error);
+  }
+};
 </script>
 
 <template>
@@ -72,12 +87,12 @@ const handleClearSavedDirectory = () => {
           <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Manager</p>
         </div>
         <button
-          @click="toggleTheme"
+          @click="showSettings = true"
           class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-          :title="currentTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+          title="Settings"
         >
           <font-awesome-icon
-            :icon="currentTheme === 'dark' ? 'sun' : 'moon'"
+            icon="cog"
             class="text-gray-700 dark:text-gray-300"
           />
         </button>
@@ -86,11 +101,36 @@ const handleClearSavedDirectory = () => {
       <div class="p-4 border-b border-gray-300 dark:border-gray-700 space-y-2">
         <button
           @click="handleSelectDirectory"
-          class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
+          class="btn-primary w-full px-4 py-2 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
         >
           <font-awesome-icon icon="folder" />
           Select Directory
         </button>
+        <button
+          v-if="agentStore.currentDirectory"
+          @click="handleLaunchClaudeCode"
+          class="btn-secondary w-full px-4 py-2 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
+          title="Launch Claude Code in terminal"
+        >
+          <font-awesome-icon icon="terminal" />
+          Launch Claude Code
+        </button>
+        <div v-if="agentStore.currentDirectory" class="space-y-1">
+          <label class="text-xs text-gray-600 dark:text-gray-400 px-1">Terminal:</label>
+          <select
+            v-model="preferredTerminal"
+            class="terminal-select w-full px-3 py-2 pr-8 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:outline-none transition-colors appearance-none bg-no-repeat"
+            style="background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e'); background-position: right 0.5rem center; background-size: 1.25rem;"
+          >
+            <option
+              v-for="(label, key) in TERMINAL_LABELS"
+              :key="key"
+              :value="key"
+            >
+              {{ label }}
+            </option>
+          </select>
+        </div>
         <button
           v-if="agentStore.currentDirectory"
           @click="handleClearSavedDirectory"
@@ -110,5 +150,8 @@ const handleClearSavedDirectory = () => {
     <main class="flex-1 flex flex-col bg-white dark:bg-gray-900">
       <MarkdownEditor />
     </main>
+
+    <!-- Settings Modal -->
+    <SettingsModal v-if="showSettings" @close="showSettings = false" />
   </div>
 </template>

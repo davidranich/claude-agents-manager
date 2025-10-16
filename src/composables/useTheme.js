@@ -28,6 +28,13 @@ export function useTheme() {
     } else {
       document.documentElement.classList.remove('dark');
     }
+
+    // Trigger color scheme update
+    // Use setTimeout to ensure the dark class is applied first
+    setTimeout(() => {
+      // Dispatch a custom event that the settings can listen to
+      window.dispatchEvent(new CustomEvent('theme-changed'));
+    }, 0);
   };
 
   // Toggle between light and dark

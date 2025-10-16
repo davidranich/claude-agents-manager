@@ -1,16 +1,21 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+const { spawn } = require('child_process');
+const os = require('os');
 
 // Keep a global reference of the window object
 let mainWindow;
+
+// Terminal sessions storage
+const terminals = {};
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 function createWindow() {
   // Create the browser window with security best practices
   mainWindow = new BrowserWindow({
-    width: 1400,
+    width: 2300,
     height: 900,
     minWidth: 1000,
     minHeight: 600,
@@ -162,5 +167,75 @@ ipcMain.handle('delete-file', async (event, filePath) => {
   } catch (error) {
     console.error('Error deleting file:', error);
     throw error;
+  }
+});
+
+// ============================================
+// Claude Code Integration - External Terminal
+// ============================================
+
+// Launch Claude Code in external terminal
+ipcMain.handle('launch-claude-code-external', async (event, filePath, cwd, terminalType = 'terminal') => {
+  try {
+    const platform = os.platform();
+
+    // Build the command - with or without file path
+    const claudeCmd = filePath ? `claude \\"${filePath}\\"` : 'claude';
+
+    if (platform === 'darwin') {
+      // macOS - support different terminals
+      let script;
+
+      if (terminalType === 'iterm') {
+        // iTerm2
+        script = `tell application "iTerm"
+          activate
+          tell current window
+            create tab with default profile
+            tell current session
+              write text "cd \\"${cwd}\\" && ${claudeCmd}"
+            end tell
+          end tell
+        end tell`;
+      } else {
+        // Terminal.app (default)
+        script = `tell application "Terminal"
+          activate
+          do script "cd \\"${cwd}\\" && ${claudeCmd}"
+        end tell`;
+      }
+
+      spawn('osascript', ['-e', script]);
+      return { success: true };
+    } else if (platform === 'win32') {
+      // Windows - use cmd
+      const winClaudeCmd = filePath ? `claude "${filePath}"` : 'claude';
+      spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/k', `cd /d "${cwd}" && ${winClaudeCmd}`]);
+      return { success: true };
+    } else {
+      // Linux - try common terminal emulators
+      const terminals = ['gnome-terminal', 'konsole', 'xterm'];
+      const linuxClaudeCmd = filePath ? `claude "${filePath}"` : 'claude';
+
+      for (const term of terminals) {
+        try {
+          if (term === 'gnome-terminal') {
+            spawn(term, ['--', 'bash', '-c', `cd "${cwd}" && ${linuxClaudeCmd}; exec bash`]);
+          } else if (term === 'konsole') {
+            spawn(term, ['-e', 'bash', '-c', `cd "${cwd}" && ${linuxClaudeCmd}; exec bash`]);
+          } else {
+            spawn(term, ['-e', 'bash', '-c', `cd "${cwd}" && ${linuxClaudeCmd}; exec bash`]);
+          }
+          return { success: true };
+        } catch (err) {
+          continue;
+        }
+      }
+
+      throw new Error('No suitable terminal emulator found');
+    }
+  } catch (error) {
+    console.error('Error launching Claude Code:', error);
+    return { success: false, error: error.message };
   }
 });

@@ -29,7 +29,10 @@ import {
   faSun,
   faMoon,
   faBookOpen,
-  faTrash
+  faTrash,
+  faTerminal,
+  faCog,
+  faTimes
 } from '@fortawesome/free-solid-svg-icons';
 
 // Add icons to library
@@ -55,7 +58,10 @@ library.add(
   faSun,
   faMoon,
   faBookOpen,
-  faTrash
+  faTrash,
+  faTerminal,
+  faCog,
+  faTimes
 );
 
 const app = createApp(App);
