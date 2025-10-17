@@ -19,6 +19,21 @@ export function useElectronAPI() {
     }
   };
 
+  const readDirectoryTree = async (dirPath) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const tree = await window.electronAPI.readDirectoryTree(dirPath);
+      return tree;
+    } catch (err) {
+      error.value = err.message;
+      console.error('Error reading directory tree:', err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   const readFile = async (filePath) => {
     loading.value = true;
     error.value = null;
@@ -112,16 +127,77 @@ export function useElectronAPI() {
     }
   };
 
+  const createDirectory = async (dirPath) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const result = await window.electronAPI.createDirectory(dirPath);
+      return result;
+    } catch (err) {
+      error.value = err.message;
+      console.error('Error creating directory:', err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const deleteDirectory = async (dirPath) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const result = await window.electronAPI.deleteDirectory(dirPath);
+      return result;
+    } catch (err) {
+      error.value = err.message;
+      console.error('Error deleting directory:', err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const directoryExists = async (dirPath) => {
+    try {
+      const exists = await window.electronAPI.directoryExists(dirPath);
+      return exists;
+    } catch (err) {
+      error.value = err.message;
+      console.error('Error checking directory existence:', err);
+      throw err;
+    }
+  };
+
+  const renameItem = async (oldPath, newPath) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const result = await window.electronAPI.renameItem(oldPath, newPath);
+      return result;
+    } catch (err) {
+      error.value = err.message;
+      console.error('Error renaming item:', err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     loading,
     error,
     readDirectory,
+    readDirectoryTree,
     readFile,
     writeFile,
     selectDirectory,
     getAppPath,
     createFile,
     fileExists,
-    deleteFile
+    deleteFile,
+    createDirectory,
+    deleteDirectory,
+    directoryExists,
+    renameItem
   };
 }

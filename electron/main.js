@@ -19,6 +19,7 @@ function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 600,
+    icon: path.join(__dirname, '../public/images/claude-agents-manager-guy.png'),
     webPreferences: {
       // Security: Enable context isolation
       contextIsolation: true,
@@ -35,6 +36,21 @@ function createWindow() {
     },
     show: false,
     backgroundColor: '#1f2937'
+  });
+
+  // Set Content Security Policy to allow data URIs for images
+  // Must be set before loading the page
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          isDev
+            ? "default-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* ws://localhost:*; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:*"
+            : "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'"
+        ]
+      }
+    });
   });
 
   // Load the app
@@ -81,7 +97,40 @@ app.on('window-all-closed', () => {
 // IPC Handlers - Secure API for renderer
 // ============================================
 
-// Get directory contents
+// Recursive function to read directory tree
+async function readDirectoryTree(dirPath, basePath = dirPath) {
+  try {
+    const files = await fs.readdir(dirPath, { withFileTypes: true });
+    const result = [];
+
+    for (const file of files) {
+      const fullPath = path.join(dirPath, file.name);
+      const relativePath = path.relative(basePath, fullPath);
+
+      const fileInfo = {
+        name: file.name,
+        path: fullPath,
+        relativePath: relativePath,
+        isDirectory: file.isDirectory(),
+        isFile: file.isFile()
+      };
+
+      if (file.isDirectory()) {
+        // Recursively read subdirectories
+        fileInfo.children = await readDirectoryTree(fullPath, basePath);
+      }
+
+      result.push(fileInfo);
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Error reading directory tree:', error);
+    return [];
+  }
+}
+
+// Get directory contents (flat list - for backwards compatibility)
 ipcMain.handle('read-directory', async (event, dirPath) => {
   try {
     const files = await fs.readdir(dirPath, { withFileTypes: true });
@@ -93,6 +142,16 @@ ipcMain.handle('read-directory', async (event, dirPath) => {
     }));
   } catch (error) {
     console.error('Error reading directory:', error);
+    throw error;
+  }
+});
+
+// Get directory contents (tree structure)
+ipcMain.handle('read-directory-tree', async (event, dirPath) => {
+  try {
+    return await readDirectoryTree(dirPath);
+  } catch (error) {
+    console.error('Error reading directory tree:', error);
     throw error;
   }
 });
@@ -166,6 +225,49 @@ ipcMain.handle('delete-file', async (event, filePath) => {
     return { success: true };
   } catch (error) {
     console.error('Error deleting file:', error);
+    throw error;
+  }
+});
+
+// Create new directory
+ipcMain.handle('create-directory', async (event, dirPath) => {
+  try {
+    await fs.mkdir(dirPath, { recursive: false });
+    return { success: true, path: dirPath };
+  } catch (error) {
+    console.error('Error creating directory:', error);
+    throw error;
+  }
+});
+
+// Delete directory (recursively)
+ipcMain.handle('delete-directory', async (event, dirPath) => {
+  try {
+    await fs.rm(dirPath, { recursive: true, force: true });
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting directory:', error);
+    throw error;
+  }
+});
+
+// Check if directory exists
+ipcMain.handle('directory-exists', async (event, dirPath) => {
+  try {
+    const stats = await fs.stat(dirPath);
+    return stats.isDirectory();
+  } catch {
+    return false;
+  }
+});
+
+// Rename file or directory
+ipcMain.handle('rename-item', async (event, oldPath, newPath) => {
+  try {
+    await fs.rename(oldPath, newPath);
+    return { success: true, newPath: newPath };
+  } catch (error) {
+    console.error('Error renaming item:', error);
     throw error;
   }
 });

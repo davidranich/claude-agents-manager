@@ -9,6 +9,7 @@ import { library } from '@fortawesome/fontawesome-svg-core';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 import {
   faFolder,
+  faFolderOpen,
   faFile,
   faFileLines,
   faPlus,
@@ -32,12 +33,16 @@ import {
   faTrash,
   faTerminal,
   faCog,
-  faTimes
+  faTimes,
+  faChevronRight,
+  faChevronDown,
+  faPen
 } from '@fortawesome/free-solid-svg-icons';
 
 // Add icons to library
 library.add(
   faFolder,
+  faFolderOpen,
   faFile,
   faFileLines,
   faPlus,
@@ -61,7 +66,10 @@ library.add(
   faTrash,
   faTerminal,
   faCog,
-  faTimes
+  faTimes,
+  faChevronRight,
+  faChevronDown,
+  faPen
 );
 
 const app = createApp(App);

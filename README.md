@@ -1,3 +1,5 @@
+![Application Logo](/public/images/claude-agents-manager-guy.png)
+
 # Claude Agents Manager
 
 A desktop application for managing and editing Claude AI agent configurations with an intuitive interface, live markdown preview, and seamless Claude Code integration.
@@ -15,7 +17,9 @@ Claude Agents Manager is an Electron-based desktop application that provides a c
 ### 📁 Directory Management
 - **Smart Directory Selection**: Choose any directory to work with (e.g., `~/.claude/agents`)
 - **Persistent Workspace**: Automatically remembers your last used directory
-- **File Browser**: Navigate your agent files with an intuitive sidebar tree view
+- **Hierarchical File Browser**: Navigate your agent files with an intuitive collapsible tree view
+- **Subdirectory Support**: Create, view, and navigate nested folder structures
+- **Folder Management**: Create new folders and delete existing ones (with recursive deletion)
 - **Real-time Updates**: File changes are tracked with unsaved indicators
 
 ### ✍️ Dual-Mode Editor
@@ -120,21 +124,33 @@ npm run build
    - Click "Select Directory" to choose your agents folder
    - Your selection is saved and will be restored on next launch
 
-3. **Edit Agent Files**
+3. **Organize with Folders**
+   - Click the "Folder" button to create new subdirectories
+   - Click folder icons to expand/collapse and browse nested structures
+   - Hover over folders to reveal the delete button
+   - Delete folders removes all contents recursively (with confirmation)
+
+4. **Create and Manage Files**
+   - Click the "File" button to create new agent files
    - Click any `.md` file in the sidebar to open it
+   - Hover over files to reveal the delete button
+   - Files can be organized in any subdirectory level
+
+5. **Edit Agent Files**
    - Use Markdown or Rich Text mode (toggle with "Swap" button)
    - See live preview of your rendered markdown
+   - Format toolbar for quick text styling
 
-4. **Customize Appearance**
+6. **Customize Appearance**
    - Click the settings icon (⚙️) to open preferences
    - Choose light/dark mode and color schemes
    - Adjust font size for accessibility
 
-5. **Launch Claude Code**
+7. **Launch Claude Code**
    - Select your preferred terminal (Terminal.app or iTerm2)
    - Click "Launch Claude Code" to start a Claude Code session
 
-6. **Save Your Work**
+8. **Save Your Work**
    - Click "Save" or press Cmd/Ctrl + S
    - Unsaved changes are indicated in the header
 

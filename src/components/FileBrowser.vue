@@ -1,15 +1,23 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed, provide } from 'vue';
 import { useAgentStore } from '@/stores/agentStore';
 import { useElectronAPI } from '@/composables/useElectronAPI';
 import NewFileDialog from './NewFileDialog.vue';
+import NewFolderDialog from './NewFolderDialog.vue';
+import RenameDialog from './RenameDialog.vue';
+import TreeItem from './TreeItem.vue';
 
 const agentStore = useAgentStore();
-const { readDirectory, readFile, createFile, fileExists, deleteFile } = useElectronAPI();
+const { readDirectoryTree, readFile, createFile, fileExists, deleteFile, createDirectory, directoryExists, deleteDirectory, renameItem } = useElectronAPI();
 
 const loading = ref(false);
 const error = ref(null);
 const showNewFileDialog = ref(false);
+const showNewFolderDialog = ref(false);
+const showRenameDialog = ref(false);
+const itemToRename = ref(null);
+const fileTree = ref([]);
+const expandedDirs = ref(new Set());
 
 // Watch for directory changes and load files
 watch(() => agentStore.currentDirectory, async (newDir) => {
@@ -22,8 +30,11 @@ async function loadDirectoryContents(dirPath) {
   loading.value = true;
   error.value = null;
   try {
-    const fileList = await readDirectory(dirPath);
-    agentStore.setFiles(fileList);
+    const tree = await readDirectoryTree(dirPath);
+    fileTree.value = tree;
+    // Still set files in store for compatibility
+    const flatFiles = flattenTree(tree);
+    agentStore.setFiles(flatFiles);
   } catch (err) {
     error.value = 'Failed to load directory contents';
     console.error(err);
@@ -32,12 +43,41 @@ async function loadDirectoryContents(dirPath) {
   }
 }
 
-async function handleFileClick(file) {
-  if (file.isFile) {
-    const canSelect = agentStore.selectFile(file);
+// Flatten tree for backward compatibility
+function flattenTree(tree) {
+  const result = [];
+  for (const item of tree) {
+    result.push(item);
+    if (item.children) {
+      result.push(...flattenTree(item.children));
+    }
+  }
+  return result;
+}
+
+// Toggle directory expansion
+function toggleDirectory(dirPath) {
+  if (expandedDirs.value.has(dirPath)) {
+    expandedDirs.value.delete(dirPath);
+  } else {
+    expandedDirs.value.add(dirPath);
+  }
+  // Force reactivity
+  expandedDirs.value = new Set(expandedDirs.value);
+}
+
+function isExpanded(dirPath) {
+  return expandedDirs.value.has(dirPath);
+}
+
+async function handleItemClick(item) {
+  if (item.isDirectory) {
+    toggleDirectory(item.path);
+  } else if (item.isFile) {
+    const canSelect = agentStore.selectFile(item);
     if (canSelect) {
       try {
-        const content = await readFile(file.path);
+        const content = await readFile(item.path);
         agentStore.setFileContent(content);
       } catch (err) {
         error.value = 'Failed to load file';
@@ -45,6 +85,15 @@ async function handleFileClick(file) {
       }
     }
   }
+}
+
+// Check if file/folder should be shown (markdown/txt files or directories)
+function shouldShowItem(item) {
+  if (item.isDirectory) return true;
+  if (item.isFile) {
+    return item.name.endsWith('.md') || item.name.endsWith('.txt');
+  }
+  return false;
 }
 
 function getFileIcon(file) {
@@ -57,6 +106,12 @@ function getFileIcon(file) {
 function isSelected(file) {
   return agentStore.selectedFile?.path === file.path;
 }
+
+// Provide tree state functions to TreeItem components
+provide('isExpanded', isExpanded);
+provide('isSelected', isSelected);
+provide('shouldShowItem', shouldShowItem);
+provide('agentStore', agentStore);
 
 async function handleCreateFile(fileName) {
   if (!agentStore.currentDirectory) {
@@ -122,6 +177,116 @@ async function handleDeleteFile(file, event) {
     console.error(err);
   }
 }
+
+async function handleCreateFolder(folderName) {
+  if (!agentStore.currentDirectory) {
+    error.value = 'No directory selected';
+    return;
+  }
+
+  const folderPath = `${agentStore.currentDirectory}/${folderName}`;
+
+  try {
+    // Check if folder already exists
+    const exists = await directoryExists(folderPath);
+    if (exists) {
+      error.value = `Folder "${folderName}" already exists`;
+      return;
+    }
+
+    // Create the folder
+    await createDirectory(folderPath);
+
+    // Reload directory contents
+    await loadDirectoryContents(agentStore.currentDirectory);
+
+    showNewFolderDialog.value = false;
+    error.value = null;
+  } catch (err) {
+    error.value = 'Failed to create folder';
+    console.error(err);
+  }
+}
+
+async function handleDeleteFolder(folder, event) {
+  // Stop event propagation to prevent folder toggle
+  event.stopPropagation();
+
+  // Confirmation dialog with stronger warning
+  const confirmed = confirm(
+    `Are you sure you want to delete the folder "${folder.name}" and ALL its contents?\n\nThis will permanently delete all files and subfolders inside "${folder.name}".\n\nThis action cannot be undone.`
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    // Delete the folder recursively
+    await deleteDirectory(folder.path);
+
+    // If a file in the deleted folder was selected, clear selection
+    if (agentStore.selectedFile && agentStore.selectedFile.path.startsWith(folder.path)) {
+      agentStore.clearSelection();
+    }
+
+    // Reload directory contents
+    await loadDirectoryContents(agentStore.currentDirectory);
+
+    error.value = null;
+  } catch (err) {
+    error.value = 'Failed to delete folder';
+    console.error(err);
+  }
+}
+
+// Unified delete handler that dispatches to file or folder delete
+function handleDeleteItem(item, event) {
+  if (item.isDirectory) {
+    handleDeleteFolder(item, event);
+  } else {
+    handleDeleteFile(item, event);
+  }
+}
+
+// Handle rename button click
+function handleRenameItem(item, event) {
+  // Stop event propagation to prevent file selection or folder toggle
+  event.stopPropagation();
+
+  itemToRename.value = item;
+  showRenameDialog.value = true;
+}
+
+// Handle rename confirmation from dialog
+async function handleRenameConfirm(newName) {
+  if (!itemToRename.value) return;
+
+  const item = itemToRename.value;
+  const parentPath = item.path.substring(0, item.path.lastIndexOf('/'));
+  const newPath = `${parentPath}/${newName}`;
+
+  try {
+    // Perform the rename
+    await renameItem(item.path, newPath);
+
+    // If the renamed item was the selected file, update the selection
+    if (agentStore.selectedFile && agentStore.selectedFile.path === item.path) {
+      agentStore.selectedFile.path = newPath;
+      agentStore.selectedFile.name = newName;
+    }
+
+    // Reload directory contents
+    await loadDirectoryContents(agentStore.currentDirectory);
+
+    // Close dialog and clear state
+    showRenameDialog.value = false;
+    itemToRename.value = null;
+    error.value = null;
+  } catch (err) {
+    error.value = `Failed to rename ${item.isDirectory ? 'folder' : 'file'}`;
+    console.error(err);
+  }
+}
 </script>
 
 <template>
@@ -129,15 +294,24 @@ async function handleDeleteFile(file, event) {
     <div class="p-3 border-b border-gray-300 dark:border-gray-700">
       <div class="flex items-center justify-between mb-2">
         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-300">Agent Files</h3>
-        <button
-          v-if="agentStore.currentDirectory"
-          @click="showNewFileDialog = true"
-          class="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors flex items-center gap-1"
-          title="Create new agent file"
-        >
-          <font-awesome-icon icon="plus" />
-          New
-        </button>
+        <div v-if="agentStore.currentDirectory" class="flex gap-2">
+          <button
+            @click="showNewFolderDialog = true"
+            class="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors flex items-center gap-1"
+            title="Create new folder"
+          >
+            <font-awesome-icon icon="folder" />
+            Folder
+          </button>
+          <button
+            @click="showNewFileDialog = true"
+            class="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors flex items-center gap-1"
+            title="Create new agent file"
+          >
+            <font-awesome-icon icon="plus" />
+            File
+          </button>
+        </div>
       </div>
       <div v-if="agentStore.currentDirectory" class="text-xs text-gray-600 dark:text-gray-500 break-all">
         {{ agentStore.currentDirectory }}
@@ -164,42 +338,17 @@ async function handleDeleteFile(file, event) {
         <div class="text-xs mt-1">Looking for .md or .txt files</div>
       </div>
 
-      <!-- File list -->
+      <!-- File tree -->
       <div v-else class="py-2">
-        <div
-          v-for="file in agentStore.markdownFiles"
-          :key="file.path"
-          class="relative group"
-        >
-          <button
-            @click="handleFileClick(file)"
-            class="w-full px-4 py-2.5 text-left hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
-            :class="{
-              'bg-gray-200 dark:bg-gray-700 border-l-2 border-blue-500': isSelected(file),
-              'border-l-2 border-transparent': !isSelected(file)
-            }"
-          >
-            <font-awesome-icon :icon="getFileIcon(file)" class="text-gray-500 dark:text-gray-400" />
-            <div class="flex-1 min-w-0">
-              <div class="text-sm text-gray-800 dark:text-gray-200 truncate">
-                {{ file.name }}
-              </div>
-            </div>
-            <div
-              v-if="isSelected(file) && agentStore.hasUnsavedChanges"
-              class="w-2 h-2 rounded-full bg-yellow-500"
-              title="Unsaved changes"
-            ></div>
-          </button>
-          <!-- Delete button (appears on hover) -->
-          <button
-            @click="(e) => handleDeleteFile(file, e)"
-            class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 transition-opacity"
-            title="Delete file"
-          >
-            <font-awesome-icon icon="trash" class="text-xs" />
-          </button>
-        </div>
+        <TreeItem
+          v-for="item in fileTree"
+          :key="item.path"
+          :item="item"
+          :level="0"
+          @click="handleItemClick"
+          @delete="handleDeleteItem"
+          @rename="handleRenameItem"
+        />
       </div>
     </div>
 
@@ -216,6 +365,22 @@ async function handleDeleteFile(file, event) {
       :show="showNewFileDialog"
       @close="showNewFileDialog = false"
       @create="handleCreateFile"
+    />
+
+    <!-- New Folder Dialog -->
+    <NewFolderDialog
+      :show="showNewFolderDialog"
+      @close="showNewFolderDialog = false"
+      @create="handleCreateFolder"
+    />
+
+    <!-- Rename Dialog -->
+    <RenameDialog
+      :show="showRenameDialog"
+      :currentName="itemToRename?.name"
+      :isDirectory="itemToRename?.isDirectory"
+      @close="showRenameDialog = false; itemToRename = null"
+      @rename="handleRenameConfirm"
     />
   </div>
 </template>

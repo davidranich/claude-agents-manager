@@ -82,9 +82,16 @@ const handleLaunchClaudeCode = async () => {
     <!-- Sidebar -->
     <aside class="w-72 bg-gray-100 dark:bg-gray-800 border-r border-gray-300 dark:border-gray-700 flex flex-col">
       <div class="p-4 border-b border-gray-300 dark:border-gray-700 flex items-center justify-between">
-        <div>
-          <h1 class="text-xl font-bold text-gray-900 dark:text-white">Claude Agents</h1>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Manager</p>
+        <div class="flex items-center gap-3">
+          <img
+            src="/images/claude-agents-manager-guy.png"
+            alt="Claude Agents Manager Logo"
+            class="w-12 h-12 object-contain"
+          />
+          <div>
+            <h1 class="text-xl font-bold text-gray-900 dark:text-white">Claude Agents</h1>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Manager</p>
+          </div>
         </div>
         <button
           @click="showSettings = true"
