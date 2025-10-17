@@ -18,6 +18,7 @@ const showRenameDialog = ref(false);
 const itemToRename = ref(null);
 const fileTree = ref([]);
 const expandedDirs = ref(new Set());
+const isRootDropTarget = ref(false);
 
 // Watch for directory changes and load files
 watch(() => agentStore.currentDirectory, async (newDir) => {
@@ -287,6 +288,88 @@ async function handleRenameConfirm(newName) {
     console.error(err);
   }
 }
+
+// Handle drag and drop move operation
+async function handleMoveItem(data) {
+  const { source, destination } = data;
+
+  // Construct the new path
+  const newPath = `${destination.path}/${source.name}`;
+
+  try {
+    // Perform the move (using rename API)
+    await renameItem(source.path, newPath);
+
+    // If the moved item was the selected file, update the selection
+    if (agentStore.selectedFile && agentStore.selectedFile.path === source.path) {
+      agentStore.selectedFile.path = newPath;
+    }
+
+    // Reload directory contents
+    await loadDirectoryContents(agentStore.currentDirectory);
+
+    error.value = null;
+  } catch (err) {
+    error.value = `Failed to move ${source.isDirectory ? 'folder' : 'file'}`;
+    console.error(err);
+  }
+}
+
+// Handle drag over the root/current directory area
+function handleRootDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+}
+
+function handleRootDragEnter(event) {
+  event.preventDefault();
+  isRootDropTarget.value = true;
+}
+
+function handleRootDragLeave(event) {
+  // Only set to false if leaving the container entirely
+  if (event.target.classList.contains('file-browser-drop-zone')) {
+    isRootDropTarget.value = false;
+  }
+}
+
+async function handleRootDrop(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  isRootDropTarget.value = false;
+
+  try {
+    const draggedData = JSON.parse(event.dataTransfer.getData('text/plain'));
+
+    // Get the parent directory of the dragged item
+    const sourceParent = draggedData.path.substring(0, draggedData.path.lastIndexOf('/'));
+
+    // Don't move if already in the current directory
+    if (sourceParent === agentStore.currentDirectory) {
+      return;
+    }
+
+    // Construct the new path in the current directory
+    const newPath = `${agentStore.currentDirectory}/${draggedData.name}`;
+
+    // Perform the move
+    await renameItem(draggedData.path, newPath);
+
+    // If the moved item was the selected file, update the selection
+    if (agentStore.selectedFile && agentStore.selectedFile.path === draggedData.path) {
+      agentStore.selectedFile.path = newPath;
+    }
+
+    // Reload directory contents
+    await loadDirectoryContents(agentStore.currentDirectory);
+
+    error.value = null;
+  } catch (err) {
+    error.value = 'Failed to move item';
+    console.error(err);
+  }
+}
 </script>
 
 <template>
@@ -318,7 +401,14 @@ async function handleRenameConfirm(newName) {
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto">
+    <div
+      class="flex-1 overflow-y-auto file-browser-drop-zone transition-colors"
+      :class="{ 'bg-blue-50 dark:bg-blue-950': isRootDropTarget }"
+      @dragover="handleRootDragOver"
+      @dragenter="handleRootDragEnter"
+      @dragleave="handleRootDragLeave"
+      @drop="handleRootDrop"
+    >
       <!-- Loading state -->
       <div v-if="loading" class="p-4 text-center text-gray-600 dark:text-gray-500">
         <div class="animate-pulse">Loading files...</div>
@@ -348,6 +438,7 @@ async function handleRenameConfirm(newName) {
           @click="handleItemClick"
           @delete="handleDeleteItem"
           @rename="handleRenameItem"
+          @move="handleMoveItem"
         />
       </div>
     </div>

@@ -4,9 +4,9 @@
 
 A desktop application for managing and editing Claude AI agent configurations with an intuitive interface, live markdown preview, and seamless Claude Code integration.
 
-![Claude Agents Manager Preview](preview2.png)
+![Claude Agents Manager Preview](readme-preview1.png)
 
-![Claude Agents Manager Preview 2](preview.png)
+![Claude Agents Manager Preview 2](readme-preview2.png)
 
 ## About
 

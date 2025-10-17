@@ -1,18 +1,22 @@
 <script setup>
-import { inject } from 'vue';
+import { inject, ref } from 'vue';
 
 const props = defineProps({
   item: Object,
   level: Number
 });
 
-const emit = defineEmits(['click', 'delete', 'rename']);
+const emit = defineEmits(['click', 'delete', 'rename', 'move']);
 
 // Inject the tree state functions from FileBrowser
 const isExpanded = inject('isExpanded');
 const isSelected = inject('isSelected');
 const shouldShowItem = inject('shouldShowItem');
 const agentStore = inject('agentStore');
+
+// Drag and drop state
+const isDragging = ref(false);
+const isDropTarget = ref(false);
 
 function handleClick() {
   emit('click', props.item);
@@ -34,18 +38,90 @@ function getFileIcon(item) {
   if (item.name.endsWith('.txt')) return 'file';
   return 'file';
 }
+
+// Drag and drop handlers
+function handleDragStart(event) {
+  isDragging.value = true;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', JSON.stringify({
+    path: props.item.path,
+    name: props.item.name,
+    isDirectory: props.item.isDirectory
+  }));
+}
+
+function handleDragEnd() {
+  isDragging.value = false;
+}
+
+function handleDragOver(event) {
+  // Only allow dropping on directories
+  if (!props.item.isDirectory) return;
+
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragEnter(event) {
+  // Only allow dropping on directories
+  if (!props.item.isDirectory) return;
+
+  event.preventDefault();
+  isDropTarget.value = true;
+}
+
+function handleDragLeave() {
+  isDropTarget.value = false;
+}
+
+function handleDrop(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  isDropTarget.value = false;
+
+  // Only allow dropping on directories
+  if (!props.item.isDirectory) return;
+
+  try {
+    const draggedData = JSON.parse(event.dataTransfer.getData('text/plain'));
+
+    // Don't allow dropping on itself
+    if (draggedData.path === props.item.path) return;
+
+    // Don't allow dropping a parent into its own child
+    if (props.item.path.startsWith(draggedData.path + '/')) return;
+
+    // Emit move event with source and destination
+    emit('move', {
+      source: draggedData,
+      destination: props.item
+    });
+  } catch (err) {
+    console.error('Error handling drop:', err);
+  }
+}
 </script>
 
 <template>
   <div v-if="shouldShowItem(item)">
     <div class="relative group">
       <button
+        draggable="true"
+        @dragstart="handleDragStart"
+        @dragend="handleDragEnd"
+        @dragover="handleDragOver"
+        @dragenter="handleDragEnter"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop"
         @click="handleClick"
         class="w-full py-2.5 pr-20 text-left hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
         :class="{
           'bg-gray-200 dark:bg-gray-700 border-l-2 border-blue-500': isSelected(item),
           'border-l-2 border-transparent': !isSelected(item),
-          'px-4': level === 0
+          'px-4': level === 0,
+          'opacity-50': isDragging,
+          'bg-blue-100 dark:bg-blue-900 border-l-2 border-blue-500': isDropTarget
         }"
         :style="level > 0 ? { paddingLeft: (level * 16 + 16) + 'px' } : {}"
       >
@@ -99,6 +175,7 @@ function getFileIcon(item) {
         @click="(item) => $emit('click', item)"
         @delete="(item, event) => $emit('delete', item, event)"
         @rename="(item, event) => $emit('rename', item, event)"
+        @move="(data) => $emit('move', data)"
       />
     </template>
   </div>
