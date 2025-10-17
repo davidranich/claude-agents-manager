@@ -8,7 +8,7 @@ A desktop application for managing and editing Claude AI agent configurations wi
 
 ## About
 
-Claude Agents Manager is an Electron-based desktop application that provides a comprehensive workspace for creating, editing, and managing your Claude AI agent instruction files. With a dual-pane editor featuring both markdown and rich text editing modes, live preview, and direct Claude Code terminal integration, it streamlines your agent development workflow.
+Claude Agents Manager is an Electron-based desktop application that provides a comprehensive workspace for creating, editing, and managing your Claude AI agent instruction files. With a dual-pane editor featuring both markdown and rich text editing modes, live preview, and direct Claude Code terminal launcher, it streamlines your agent development workflow.
 
 ## Features
 
@@ -32,9 +32,15 @@ Claude Agents Manager is an Electron-based desktop application that provides a c
 - **Multiple Color Schemes**:
   - Default Gray
   - Ayu Dark - Cool blue-black aesthetic
-  - Bearded Black & Gold - Warm brown with gold accents
-  - Cyberpunk Scarlet - Neon magenta and cyan
+    - _(inspired by work from: [teabyii](https://vscodethemes.com/e/teabyii.ayu/ayu-dark-bordered))_
+  - Bearded Black & Gold - Warm brown with gold accents 
+    - _(inspired by work from: [BeardedBear](https://vscodethemes.com/e/BeardedBear.beardedtheme/bearded-theme-black-and-gold-soft))_
+  - Cyberpunk Scarlet - Neon magenta and cyan 
+    - _(inspired by work from: [Max](https://vscodethemes.com/e/max-SS.cyberpunk/activate-scarlet-protocol-beta))_
   - Eva Dark - Professional blue-gray tones
+    - _(inspired by work from: [fisheva](https://vscodethemes.com/e/fisheva.eva-theme/eva-dark))_
+  - Gruvbox Dark Hard - Retro warm earthy tones 
+    - _(inspired by work from: [jdinhlife](https://vscodethemes.com/e/jdinhlife.gruvbox/gruvbox-dark-hard))_
 - **Separate Theme Modes**: Independent color schemes for light and dark modes
 - **Accessibility Options**: Adjustable font sizes (Small, Medium, Large, Extra Large)
 - **Theme-Aware Components**: All UI elements adapt to selected color scheme
@@ -127,7 +133,6 @@ npm run build
 5. **Launch Claude Code**
    - Select your preferred terminal (Terminal.app or iTerm2)
    - Click "Launch Claude Code" to start a Claude Code session
-   - Your current directory context is preserved
 
 6. **Save Your Work**
    - Click "Save" or press Cmd/Ctrl + S
@@ -166,4 +171,4 @@ ISC
 
 - Built for managing [Claude Code](https://claude.com/claude-code) agents
 - Inspired by modern code editors and markdown tools
-- Color schemes adapted from popular VS Code themes (Ayu, Bearded Theme, Cyberpunk, Eva)
+- Color schemes adapted from popular VS Code themes (Ayu, Bearded Theme, Cyberpunk, Eva, Gruvbox)
