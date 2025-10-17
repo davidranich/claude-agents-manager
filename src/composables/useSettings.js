@@ -35,6 +35,7 @@ export const COLOR_SCHEMES = {
   BEARDED: 'bearded',
   CYBERPUNK: 'cyberpunk',
   EVA: 'eva',
+  GRUVBOX: 'gruvbox',
 };
 
 export const COLOR_SCHEME_LABELS = {
@@ -43,6 +44,7 @@ export const COLOR_SCHEME_LABELS = {
   [COLOR_SCHEMES.BEARDED]: 'Bearded Black & Gold',
   [COLOR_SCHEMES.CYBERPUNK]: 'Cyberpunk Scarlet',
   [COLOR_SCHEMES.EVA]: 'Eva Dark',
+  [COLOR_SCHEMES.GRUVBOX]: 'Gruvbox Dark Hard',
 };
 
 export const COLOR_SCHEME_LABELS_LIGHT = {
@@ -51,6 +53,7 @@ export const COLOR_SCHEME_LABELS_LIGHT = {
   [COLOR_SCHEMES.BEARDED]: 'Bearded Black & Gold',
   [COLOR_SCHEMES.CYBERPUNK]: 'Cyberpunk Scarlet',
   [COLOR_SCHEMES.EVA]: 'Eva Light',
+  [COLOR_SCHEMES.GRUVBOX]: 'Gruvbox Light',
 };
 
 // Define color palettes for each scheme
@@ -117,6 +120,18 @@ export const COLOR_PALETTES = {
       btnSecondary: '#7C8AE0',
       btnSecondaryHover: '#6979CC',
     },
+    [COLOR_SCHEMES.GRUVBOX]: {
+      bg: '#FBF1C7',
+      bgSecondary: '#EADBB2',
+      border: '#D5C4A1',
+      text: '#3C3836',
+      textSecondary: '#504945',
+      accent: '#458588',
+      btnPrimary: '#458588',
+      btnPrimaryHover: '#076678',
+      btnSecondary: '#689D6A',
+      btnSecondaryHover: '#79740E',
+    },
   },
   // Dark mode colors
   dark: {
@@ -179,6 +194,18 @@ export const COLOR_PALETTES = {
       btnPrimaryHover: '#6FA3F7',
       btnSecondary: '#7C8AE0',
       btnSecondaryHover: '#8F9BED',
+    },
+    [COLOR_SCHEMES.GRUVBOX]: {
+      bg: '#1D2021',
+      bgSecondary: '#282828',
+      border: '#3C3836',
+      text: '#FBF1C7',
+      textSecondary: '#EADBB2',
+      accent: '#83A598',
+      btnPrimary: '#83A598',
+      btnPrimaryHover: '#93B5A8',
+      btnSecondary: '#689D6A',
+      btnSecondaryHover: '#78AD7A',
     },
   },
 };
