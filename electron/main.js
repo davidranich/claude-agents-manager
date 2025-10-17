@@ -123,6 +123,15 @@ async function readDirectoryTree(dirPath, basePath = dirPath) {
       result.push(fileInfo);
     }
 
+    // Sort: directories first, then files (both alphabetically)
+    result.sort((a, b) => {
+      // Directories come before files
+      if (a.isDirectory && !b.isDirectory) return -1;
+      if (!a.isDirectory && b.isDirectory) return 1;
+      // Both are same type, sort alphabetically (case-insensitive)
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
+
     return result;
   } catch (error) {
     console.error('Error reading directory tree:', error);
