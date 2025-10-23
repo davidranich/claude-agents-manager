@@ -140,7 +140,7 @@ async function handleCreateFile(fileName) {
     // Select the newly created file
     const newFile = agentStore.files.find(f => f.path === filePath);
     if (newFile) {
-      await handleFileClick(newFile);
+      await handleItemClick(newFile);
     }
 
     showNewFileDialog.value = false;
