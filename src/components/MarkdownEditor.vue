@@ -6,6 +6,7 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import TurndownService from 'turndown';
 import hljs from 'highlight.js/lib/core';
+import FindReplaceDialog from './FindReplaceDialog.vue';
 
 // Import common languages
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -62,6 +63,13 @@ const editorPaneRef = ref(null);
 const previewPaneRef = ref(null);
 const editorWidth = ref(50); // percentage
 const isResizing = ref(false);
+
+// Find/Replace state
+const showFindReplace = ref(false);
+const findReplaceMode = ref('find'); // 'find' or 'replace'
+const findReplaceDialogRef = ref(null);
+const currentSearchTerm = ref('');
+const currentSearchCaseSensitive = ref(false);
 
 // Handle pane resizing
 const startResize = () => {
@@ -156,8 +164,9 @@ const renderMarkdown = (markdown) => {
   if (!markdown) return '';
   try {
     const rawHtml = marked.parse(markdown);
-    // Configure DOMPurify to allow hljs classes for syntax highlighting
+    // Configure DOMPurify to allow hljs classes for syntax highlighting and mark tags for search highlights
     return DOMPurify.sanitize(rawHtml, {
+      ADD_TAGS: ['mark'],
       ADD_ATTR: ['class'],
       ALLOWED_ATTR: ['class', 'href', 'title', 'alt', 'src'],
       KEEP_CONTENT: true
@@ -167,6 +176,32 @@ const renderMarkdown = (markdown) => {
     return '<p class="text-red-400">Error rendering markdown</p>';
   }
 };
+
+// Render markdown with search highlighting
+const renderMarkdownWithHighlights = computed(() => {
+  if (!agentStore.fileContent) return '';
+
+  // Render the markdown first
+  let html = renderMarkdown(agentStore.fileContent);
+
+  // If there's an active search with non-empty term, highlight matches
+  if (currentSearchTerm.value && currentSearchTerm.value.trim() !== '') {
+    const searchTerm = currentSearchTerm.value;
+    const flags = currentSearchCaseSensitive.value ? 'g' : 'gi';
+
+    // Escape special regex characters
+    const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Create regex to find matches
+    const regex = new RegExp(escapedTerm, flags);
+
+    // Wrap matches in mark tags
+    // We need to be careful not to match inside HTML tags
+    html = html.replace(regex, (match) => `<mark class="search-highlight">${match}</mark>`);
+  }
+
+  return html;
+});
 
 // Scroll synchronization - improved for fluid sync
 const handleEditorScroll = () => {
@@ -220,6 +255,15 @@ watch([() => agentStore.fileContent, editMode], () => {
     richContent.value = renderMarkdown(agentStore.fileContent);
   }
 }, { immediate: true });
+
+// Clear search highlights when find dialog closes
+watch(showFindReplace, (newVal) => {
+  if (!newVal) {
+    // Clear search term when dialog closes
+    currentSearchTerm.value = '';
+    currentSearchCaseSensitive.value = false;
+  }
+});
 
 // Handle rich text editing
 const handleRichTextInput = (event) => {
@@ -306,6 +350,22 @@ const handleKeydown = (event) => {
     return;
   }
 
+  // Find shortcut (Cmd/Ctrl + F)
+  if ((event.metaKey || event.ctrlKey) && event.key === 'f') {
+    event.preventDefault();
+    findReplaceMode.value = 'find';
+    showFindReplace.value = true;
+    return;
+  }
+
+  // Replace shortcut (Cmd/Ctrl + H)
+  if ((event.metaKey || event.ctrlKey) && event.key === 'h') {
+    event.preventDefault();
+    findReplaceMode.value = 'replace';
+    showFindReplace.value = true;
+    return;
+  }
+
   // Tab key handling for markdown editor
   if (event.key === 'Tab' && editMode.value === 'markdown') {
     event.preventDefault();
@@ -348,6 +408,229 @@ const handleKeydown = (event) => {
     }
   }
 };
+
+// Find/Replace functionality
+const handleFindNext = (searchData, keepFocus = false) => {
+  const textarea = editMode.value === 'markdown' ? editorRef.value : richEditorRef.value;
+  if (!textarea || !agentStore.fileContent) return;
+
+  const { text, caseSensitive } = searchData;
+
+  // Always update current search term for highlighting in preview (even if empty)
+  currentSearchTerm.value = text;
+  currentSearchCaseSensitive.value = caseSensitive;
+
+  // Update match count (will reset to 0/0 if empty)
+  updateMatchCount(searchData);
+
+  // If search is empty, just return
+  if (!text) return;
+
+  const content = agentStore.fileContent;
+  const searchText = caseSensitive ? text : text.toLowerCase();
+  const searchContent = caseSensitive ? content : content.toLowerCase();
+
+  // If there's a selection and it matches the search text, start after it
+  const selectionStart = textarea.selectionStart || 0;
+  const selectionEnd = textarea.selectionEnd || 0;
+  const hasSelection = selectionStart !== selectionEnd;
+  const selectedText = content.substring(selectionStart, selectionEnd);
+  const selectedMatches = caseSensitive
+    ? selectedText === text
+    : selectedText.toLowerCase() === searchText;
+
+  // Start searching from after the current selection if it matches, otherwise from cursor
+  const startPos = (hasSelection && selectedMatches) ? selectionEnd : selectionStart;
+  let index = searchContent.indexOf(searchText, startPos);
+
+  // If not found after cursor, wrap around to start
+  if (index === -1) {
+    index = searchContent.indexOf(searchText);
+  }
+
+  if (index !== -1) {
+    // Store the currently focused element
+    const previouslyFocused = keepFocus ? document.activeElement : null;
+
+    // Select the found text
+    textarea.setSelectionRange(index, index + text.length);
+
+    // Scroll to the match
+    const lineHeight = 20; // approximate line height
+    const scrollPosition = (index / content.length) * textarea.scrollHeight;
+    textarea.scrollTop = Math.max(0, scrollPosition - textarea.clientHeight / 2);
+
+    // Only focus the textarea if we're not keeping focus elsewhere
+    if (!keepFocus) {
+      textarea.focus();
+    } else if (previouslyFocused) {
+      // Restore focus to the find dialog
+      previouslyFocused.focus();
+    }
+
+    // Update match count
+    updateMatchCount(searchData);
+  }
+};
+
+const handleFindPrevious = (searchData, keepFocus = false) => {
+  const textarea = editMode.value === 'markdown' ? editorRef.value : richEditorRef.value;
+  if (!textarea || !agentStore.fileContent) return;
+
+  const { text, caseSensitive } = searchData;
+
+  // Always update current search term for highlighting in preview (even if empty)
+  currentSearchTerm.value = text;
+  currentSearchCaseSensitive.value = caseSensitive;
+
+  // Update match count (will reset to 0/0 if empty)
+  updateMatchCount(searchData);
+
+  // If search is empty, just return
+  if (!text) return;
+
+  const content = agentStore.fileContent;
+  const searchText = caseSensitive ? text : text.toLowerCase();
+  const searchContent = caseSensitive ? content : content.toLowerCase();
+
+  // If there's a selection and it matches the search text, start before it
+  const selectionStart = textarea.selectionStart || 0;
+  const selectionEnd = textarea.selectionEnd || 0;
+  const hasSelection = selectionStart !== selectionEnd;
+  const selectedText = content.substring(selectionStart, selectionEnd);
+  const selectedMatches = caseSensitive
+    ? selectedText === text
+    : selectedText.toLowerCase() === searchText;
+
+  // Start searching backwards from before the current selection if it matches, otherwise from cursor
+  const startPos = (hasSelection && selectedMatches) ? selectionStart - 1 : selectionStart - 1;
+  let index = searchContent.lastIndexOf(searchText, startPos);
+
+  // If not found before cursor, wrap around to end
+  if (index === -1) {
+    index = searchContent.lastIndexOf(searchText);
+  }
+
+  if (index !== -1) {
+    // Store the currently focused element
+    const previouslyFocused = keepFocus ? document.activeElement : null;
+
+    // Select the found text
+    textarea.setSelectionRange(index, index + text.length);
+
+    // Scroll to the match
+    const lineHeight = 20; // approximate line height
+    const scrollPosition = (index / content.length) * textarea.scrollHeight;
+    textarea.scrollTop = Math.max(0, scrollPosition - textarea.clientHeight / 2);
+
+    // Only focus the textarea if we're not keeping focus elsewhere
+    if (!keepFocus) {
+      textarea.focus();
+    } else if (previouslyFocused) {
+      // Restore focus to the find dialog
+      previouslyFocused.focus();
+    }
+
+    // Update match count
+    updateMatchCount(searchData);
+  }
+};
+
+const handleReplace = (replaceData) => {
+  const textarea = editMode.value === 'markdown' ? editorRef.value : richEditorRef.value;
+  if (!textarea || !agentStore.fileContent) return;
+
+  const { find, replace, caseSensitive } = replaceData;
+  const selectionStart = textarea.selectionStart;
+  const selectionEnd = textarea.selectionEnd;
+  const selectedText = agentStore.fileContent.substring(selectionStart, selectionEnd);
+
+  // Check if current selection matches find text
+  const matches = caseSensitive
+    ? selectedText === find
+    : selectedText.toLowerCase() === find.toLowerCase();
+
+  if (matches) {
+    // Replace the selected text
+    const newContent =
+      agentStore.fileContent.substring(0, selectionStart) +
+      replace +
+      agentStore.fileContent.substring(selectionEnd);
+
+    content.value = newContent;
+
+    // Move to next match
+    nextTick(() => {
+      textarea.selectionStart = selectionStart + replace.length;
+      handleFindNext({ text: find, caseSensitive });
+    });
+  } else {
+    // Find next match
+    handleFindNext({ text: find, caseSensitive });
+  }
+};
+
+const handleReplaceAll = (replaceData) => {
+  const { find, replace, caseSensitive } = replaceData;
+  let newContent = agentStore.fileContent;
+
+  if (caseSensitive) {
+    newContent = newContent.split(find).join(replace);
+  } else {
+    // Case-insensitive replace all
+    const regex = new RegExp(escapeRegex(find), 'gi');
+    newContent = newContent.replace(regex, replace);
+  }
+
+  content.value = newContent;
+
+  // Close find/replace dialog after replace all
+  showFindReplace.value = false;
+};
+
+// Helper function to escape regex special characters
+const escapeRegex = (str) => {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+// Update match count in the dialog
+const updateMatchCount = (searchData) => {
+  const { text, caseSensitive } = searchData;
+
+  // If search is empty, reset the count
+  if (!text || text.trim() === '') {
+    if (findReplaceDialogRef.value) {
+      findReplaceDialogRef.value.setMatches(0, 0);
+    }
+    return;
+  }
+
+  const searchText = caseSensitive ? text : text.toLowerCase();
+  const content = caseSensitive ? agentStore.fileContent : agentStore.fileContent.toLowerCase();
+
+  const matches = content.split(searchText).length - 1;
+  const currentPos = editorRef.value?.selectionStart || 0;
+
+  // Count matches before current position
+  const beforeContent = content.substring(0, currentPos);
+  const currentMatch = beforeContent.split(searchText).length;
+
+  if (findReplaceDialogRef.value) {
+    findReplaceDialogRef.value.setMatches(currentMatch, matches);
+  }
+};
+
+// Open find dialog
+const openFind = () => {
+  findReplaceMode.value = 'find';
+  showFindReplace.value = true;
+};
+
+// Open replace dialog
+const openReplace = () => {
+  findReplaceMode.value = 'replace';
+  showFindReplace.value = true;
+};
 </script>
 
 <template>
@@ -370,6 +653,22 @@ const handleKeydown = (event) => {
         </span>
       </div>
       <div class="flex items-center gap-3">
+        <button
+          v-if="agentStore.selectedFile"
+          @click="openFind"
+          class="px-3 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+          title="Find (Cmd/Ctrl+F)"
+        >
+          <font-awesome-icon icon="search" />
+        </button>
+        <button
+          v-if="agentStore.selectedFile"
+          @click="openReplace"
+          class="px-3 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+          title="Find & Replace (Cmd/Ctrl+H)"
+        >
+          <font-awesome-icon icon="rotate" />
+        </button>
         <button
           v-if="agentStore.selectedFile"
           @click="toggleEditMode"
@@ -596,7 +895,7 @@ const handleKeydown = (event) => {
           <div
             v-if="agentStore.selectedFile && agentStore.fileContent && editMode === 'markdown'"
             class="prose dark:prose-invert prose-sm max-w-none"
-            v-html="renderMarkdown(agentStore.fileContent)"
+            v-html="renderMarkdownWithHighlights"
           ></div>
 
           <!-- Markdown Preview (from Rich Text) -->
@@ -620,6 +919,19 @@ const handleKeydown = (event) => {
         </div>
       </div>
     </div>
+
+    <!-- Find/Replace Dialog -->
+    <FindReplaceDialog
+      ref="findReplaceDialogRef"
+      :show="showFindReplace"
+      :mode="findReplaceMode"
+      @close="showFindReplace = false"
+      @live-search="(data) => handleFindNext(data, true)"
+      @find-next="(data) => handleFindNext(data, true)"
+      @find-previous="(data) => handleFindPrevious(data, true)"
+      @replace="handleReplace"
+      @replace-all="handleReplaceAll"
+    />
   </div>
 </template>
 
@@ -1019,5 +1331,30 @@ const handleKeydown = (event) => {
 /* Task lists (GitHub style) */
 .prose input[type="checkbox"] {
   margin-right: 0.5em;
+}
+
+/* Highlight search results in textarea - when focused */
+textarea::selection {
+  background-color: #fbbf24;
+  color: #000;
+}
+
+.dark textarea::selection {
+  background-color: #f59e0b;
+  color: #fff;
+}
+
+/* Search highlights in preview pane */
+.prose mark.search-highlight {
+  background-color: #fbbf24;
+  color: #000;
+  padding: 2px 0;
+  border-radius: 2px;
+  font-weight: inherit;
+}
+
+.dark .prose mark.search-highlight {
+  background-color: #f59e0b;
+  color: #fff;
 }
 </style>

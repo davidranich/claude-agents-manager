@@ -36,7 +36,10 @@ import {
   faTimes,
   faChevronRight,
   faChevronDown,
-  faPen
+  faChevronUp,
+  faPen,
+  faSearch,
+  faRotate
 } from '@fortawesome/free-solid-svg-icons';
 
 // Add icons to library
@@ -69,7 +72,10 @@ library.add(
   faTimes,
   faChevronRight,
   faChevronDown,
-  faPen
+  faChevronUp,
+  faPen,
+  faSearch,
+  faRotate
 );
 
 const app = createApp(App);
